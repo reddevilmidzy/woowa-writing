@@ -144,6 +144,7 @@ Maven 파일에서 spring.profile.active 속성을 지정할 수 있다.
 
 @Profile 애노테이션을 사용하면 빈을 특정 프로파일에 속하게 만들 수 있다. 
 
+**Profile.java**
 ```java
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
@@ -179,6 +180,7 @@ public class CConfig{ }
 
 <br>
 
+**DataSourceConfig.java**
 ```java
 @Profile("test | prod")
 @Configuration
@@ -207,11 +209,143 @@ public class DataSourceConfig {
 ## @Order
 
 
+스프링에서 빈의 실행 순서나 우선 순위 지정이 필요할 때가 있다. 
+주로 필터, 인터셉터, AOP 어드바이스 등 여러 컴포넌트나 빈이 실행되거나 적용될 때 순서를 제어해야 하는 상황이 생기는데 이때 사용할 수 있는 애노테이션이 @Order다. 
 
 
+**Order.java**
+```java
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.TYPE, ElementType.METHOD, ElementType.FIELD})
+@Documented
+public @interface Order {
 
+	int value() default Ordered.LOWEST_PRECEDENCE;
+
+}
+```
+value 가 낮을 수록 우선순위가 더 높다. 값이 같은 경우에는 랜덤이다.
+
+
+**Ordered.java**
+```java
+public interface Ordered {
+
+	int HIGHEST_PRECEDENCE = Integer.MIN_VALUE;
+
+	int LOWEST_PRECEDENCE = Integer.MAX_VALUE;
+
+	int getOrder();
+
+}
+```
+
+프로젝트에서는 필터와 RestControllerAdvice 빈들에게 Order를 주었다.
+
+**FilterConfig.java**
+```java
+@RequiredArgsConstructor
+@Configuration
+public class FilterConfig {
+
+    @Bean
+    public FilterRegistrationBean<AccessTokenSessionFilter> accessTokenSessionFilter() {
+        final FilterRegistrationBean<AccessTokenSessionFilter> bean = new FilterRegistrationBean<>();
+        bean.setFilter(new AccessTokenSessionFilter());
+        bean.addUrlPatterns("/api/sign-up", "/api/sign-in/callback");
+        bean.setOrder(2);
+        return bean;
+    }
+
+    @Bean
+    public FilterRegistrationBean<SignInCookieFilter> signInCookieFilter(final JwtProvider jwtProvider) {
+        final FilterRegistrationBean<SignInCookieFilter> bean = new FilterRegistrationBean<>();
+        bean.setFilter(new SignInCookieFilter(jwtProvider));
+        bean.addUrlPatterns("/api/sign-out", "/api/member", "/api/sign-in/check");
+        bean.setOrder(1);
+        return bean;
+    }
+
+    @Bean
+    public FilterRegistrationBean<AuthFailHandlerFilter> authFailHandlerFilter(final ObjectMapper objectMapper) {
+        final FilterRegistrationBean<AuthFailHandlerFilter> bean = new FilterRegistrationBean<>();
+        bean.setFilter(new AuthFailHandlerFilter(objectMapper));
+        bean.setOrder(0);
+        return bean;
+    }
+}
+```
+
+**ReferenceLinkExceptionHandler.java**
+```java
+@Slf4j
+@RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class ReferenceLinkExceptionHandler {
+    @ExceptionHandler(ReferenceLinkException.class)
+    public ResponseEntity<ApiErrorResponse> handleReferenceLinkException(final ReferenceLinkException e) {
+        log.warn(e.getMessage());
+
+        return ResponseEntity.status(ReferenceLinkApiError.BAD_REQUEST.getHttpStatus())
+                .body(new ApiErrorResponse(ReferenceLinkApiError.BAD_REQUEST.getMessage()));
+    }
+}
+```
+
+**TimerExceptionHandler.java**
+```java
+@Slf4j
+@RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class TimerExceptionHandler {
+    @ExceptionHandler(TimerException.class)
+    public ResponseEntity<ApiErrorResponse> handleTimerException(final TimerException e) {
+        log.warn(e.getMessage());
+
+        return ResponseEntity.status(TimerApiError.INVALID_REQUEST.getHttpStatus())
+                .body(new ApiErrorResponse(TimerApiError.INVALID_REQUEST.getMessage()));
+    }
+}
+```
+
+**CommonExceptionHandler.java**
+```java
+@Slf4j
+@RestControllerAdvice
+public class CommonExceptionHandler extends ResponseEntityExceptionHandler {
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiErrorResponse> handleException(final Exception e) {
+        log.error(e.getMessage(), e);
+
+        return ResponseEntity.status(CommonApiError.SERVER_ERROR.getHttpStatus())
+                .body(new ApiErrorResponse(CommonApiError.SERVER_ERROR.getMessage()));
+    }
+}
+```
+
+Order를 주지 않았을 때의 문제점이 모든 예외가 common 패키지 안에 @ExceptionHandler(Exception.class)에 잡힌 다는 것이였다. 
+TimerException도 @ExceptionHandler(TimerException.class)에 잡히는 것이 아니라 @ExceptionHandler(Exception.class)에 잡혔다.
+TimerException이 Exception의 자식이지만 더 구체적인 TimerException에 잡힐 줄 알았는데 그게 아니였다. 
+@ExceptionHandler를 각기 다른 클래스에 두지 않고 한 클래스에 두었을 때에는 의도한대로 TimerException에서 잡혔다. 
+
+그래서 해결 방안으로 나온 것이 @Order의 사용이다. CommonExceptionHandler을 제외한 다른 Handler에게 @Order(Ordered.HIGHEST_PRECEDENCE) 추가하여 우선 순위를 부여해 CommonExceptionHandler 보다 먼저 
+빈 등록이 되게 하였다. 
+
+<br>
+
+## 결론
+
+이 글에서는 스프링 빈 프로퍼티와 관련된 두 가지 중요한 애노테이션인 @Profile과 @Order에 대해 살펴보았다.
+@Profile 애노테이션은 다양한 개발 환경에 따라 빈의 등록을 제어할 수 있게 해준다. 
+이를 통해 환경별로 다른 설정을 적용하거나 특정 환경에서만 필요한 빈을 관리할 수 있다.  
+
+@Order 애노테이션은 빈의 실행 순서나 우선순위를 지정하는 데 사용된다. 특히 필터, 인터셉터, AOP 어드바이스 등 여러 컴포넌트의 실행 순서를 제어해야 할 때 유용하다.
+
+이러한 애노테이션들을 적절히 활용하면 스프링 애플리케이션의 유연성과 확장성을 크게 향상시킬 수 있다.  
+환경별 설정 관리와 컴포넌트 실행 순서 제어를 통해 더 효율적이고 안정적인 애플리케이션을 구축할 수 있다.
 ---
 
 ### 참고 자료
 
 [profiles-in-spring-boot](https://javatechonline.com/profiles-in-spring-boot/)
+[spring order docs](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/core/annotation/Order.html)
