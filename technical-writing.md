@@ -339,13 +339,14 @@ TimerException이 Exception의 자식이지만 더 구체적인 TimerException�
 @Profile 애노테이션은 다양한 개발 환경에 따라 빈의 등록을 제어할 수 있게 해준다. 
 이를 통해 환경별로 다른 설정을 적용하거나 특정 환경에서만 필요한 빈을 관리할 수 있다.  
 
-@Order 애노테이션은 빈의 실행 순서나 우선순위를 지정하는 데 사용된다. 특히 필터, 인터셉터, AOP 어드바이스 등 여러 컴포넌트의 실행 순서를 제어해야 할 때 유용하다.
-
+@Order 애노테이션은 빈의 실행 순서나 우선순위를 지정하는 데 사용된다. 특히 필터, 인터셉터, AOP 어드바이스 등 여러 컴포넌트의 실행 순서를 제어해야 할 때 유용하다.  
+  
 이러한 애노테이션들을 적절히 활용하면 스프링 애플리케이션의 유연성과 확장성을 크게 향상시킬 수 있다.  
-환경별 설정 관리와 컴포넌트 실행 순서 제어를 통해 더 효율적이고 안정적인 애플리케이션을 구축할 수 있다.
+환경별 설정 관리와 컴포넌트 실행 순서 제어를 통해 더 효율적이고 안정적인 애플리케이션을 구축할 수 있다.  
+
 ---
 
 ### 참고 자료
 
-[profiles-in-spring-boot](https://javatechonline.com/profiles-in-spring-boot/)
-[spring order docs](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/core/annotation/Order.html)
+* [profiles-in-spring-boot](https://javatechonline.com/profiles-in-spring-boot/)  
+* [spring order docs](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/core/annotation/Order.html)
