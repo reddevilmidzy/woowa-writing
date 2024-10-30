@@ -463,5 +463,6 @@ TimerException이 Exception의 자식이지만 더 구체적인 TimerException�
 
 ### 참고 자료
 
+* [spring profile docs](https://docs.spring.io/spring-boot/reference/features/profiles.html)
 * [profiles-in-spring-boot](https://javatechonline.com/profiles-in-spring-boot/)  
 * [spring order docs](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/core/annotation/Order.html)
