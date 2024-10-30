@@ -229,7 +229,95 @@ class ProfileCondition implements Condition {
 }
 ```
 
+<br>
 
+
+`matchesProfiles` 메서드를 타고타고 들어가다보면 `ProfilesParser`의 `parseToken` 메서드를 만나게 된다. 
+
+```java
+public interface Environment extends PropertyResolver {
+
+    // 중략
+    
+    default boolean matchesProfiles(String... profileExpressions) {
+        return acceptsProfiles(Profiles.of(profileExpressions));
+    }
+
+}
+```
+
+<br>
+
+```java
+@FunctionalInterface
+public interface Profiles {
+
+    boolean matches(Predicate<String> isProfileActive);
+
+    static Profiles of(String... profileExpressions) {
+        return ProfilesParser.parse(profileExpressions);
+    }
+
+}
+```
+
+<br>
+
+```java
+final class ProfilesParser {
+
+    // 중략
+
+    private static Profiles parseTokens(String expression, StringTokenizer tokens, Context context) {
+        List<Profiles> elements = new ArrayList<>();
+        Operator operator = null;
+        while (tokens.hasMoreTokens()) {
+            String token = tokens.nextToken().trim();
+            if (token.isEmpty()) {
+                continue;
+            }
+            switch (token) {
+                case "(" -> {
+                    Profiles contents = parseTokens(expression, tokens, Context.PARENTHESIS);
+                    if (context == Context.NEGATE) {
+                        return contents;
+                    }
+                    elements.add(contents);
+                }
+                case "&" -> {
+                    assertWellFormed(expression, operator == null || operator == Operator.AND);
+                    operator = Operator.AND;
+                }
+                case "|" -> {
+                    assertWellFormed(expression, operator == null || operator == Operator.OR);
+                    operator = Operator.OR;
+                }
+                case "!" -> elements.add(not(parseTokens(expression, tokens, Context.NEGATE)));
+                case ")" -> {
+                    Profiles merged = merge(expression, elements, operator);
+                    if (context == Context.PARENTHESIS) {
+                        return merged;
+                    }
+                    elements.clear();
+                    elements.add(merged);
+                    operator = null;
+                }
+                default -> {
+                    Profiles value = equals(token);
+                    if (context == Context.NEGATE) {
+                        return value;
+                    }
+                    elements.add(value);
+                }
+            }
+        }
+        return merge(expression, elements, operator);
+    }
+
+}
+```
+
+각각 문자열을 파싱하여 AND, OR, NOT 연산자를 확인하여 현재 적용할 Profile을 확인하는 것을 볼 수 있다.  
 
 <br>
 
