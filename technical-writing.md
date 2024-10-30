@@ -202,7 +202,34 @@ public class DataSourceConfig {
 }
 ```
 
-프로젝트에서는 운영과 테스트 환경에서는 master DB와 slave DB를 나누었지만, 로컬환경에서는 나누는 것이 불필요했기에 @Profile 애노테이션을 활용해서 local 환경에서는 빈등록이 되지 않도록 하였다. 
+프로젝트에서는 운영과 테스트 환경에서는 master DB와 slave DB를 나누었지만, 로컬환경에서는 나누는 것이 불필요했기에 @Profile 애노테이션을 활용해서 local 환경에서는 빈등록이 되지 않도록 하였다.  
+
+스프링이 어떤 식으로 Profile 확인하는지 코드를 통해 살펴보자.  
+
+`@Profile` 애노테이션을 잘 살펴보면 `@Conditional(ProfileCondition.class)` 이 붙어 있는 것을 확인할 수 있다. ProfileCondition 클래스에 들어가보면 `matches` 메서드가 있는데, 이 안에서 현재 실행중인 `Profile`과 설정된 `Profile`을 확인한다.  
+
+
+```java
+class ProfileCondition implements Condition {
+
+	@Override
+	public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+		MultiValueMap<String, Object> attrs = metadata.getAllAnnotationAttributes(Profile.class.getName());
+		if (attrs != null) {
+			for (Object value : attrs.get("value")) {
+				if (context.getEnvironment().matchesProfiles((String[]) value)) {
+					return true;
+				}
+			}
+			return false;
+		}
+		return true;
+	}
+
+}
+```
+
+
 
 <br>
 
