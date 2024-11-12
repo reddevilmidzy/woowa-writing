@@ -438,9 +438,9 @@ public class CommonExceptionHandler extends ResponseEntityExceptionHandler {
 }
 ```
 
-Order를 주지 않았을 때의 문제점이 모든 예외가 common 패키지 안에 @ExceptionHandler(Exception.class)에 잡힌 다는 것이였다. 
-TimerException도 @ExceptionHandler(TimerException.class)에 잡히는 것이 아니라 @ExceptionHandler(Exception.class)에 잡혔다.
-TimerException이 Exception의 자식이지만 더 구체적인 TimerException에 잡힐 줄 알았는데 그게 아니였다. 
+Order를 주지 않았을 때의 문제점이 모든 예외가 common 패키지 안의 @ExceptionHandler(Exception.class)에 잡힌다는 것이였다. 
+TimerException도 @ExceptionHandler(TimerException.class)에 잡히는 것이 아니라 @ExceptionHandler(Exception.class)에 잡혔다. 
+TimerException이 Exception의 자식이기 때문에 더 상위인 TimerException에 잡힐 줄 알았는데 그게 아니였다. 
 @ExceptionHandler를 각기 다른 클래스에 두지 않고 한 클래스에 두었을 때에는 의도한대로 TimerException에서 잡혔다. 
 
 그래서 해결 방안으로 나온 것이 @Order의 사용이다. CommonExceptionHandler을 제외한 다른 Handler에게 @Order(Ordered.HIGHEST_PRECEDENCE) 추가하여 우선 순위를 부여해 CommonExceptionHandler 보다 먼저 
