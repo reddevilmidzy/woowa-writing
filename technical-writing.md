@@ -211,7 +211,7 @@ public class DataSourceConfig {
 
 스프링이 어떤 식으로 Profile 확인하는지 코드를 통해 살펴보자.  
 
-`@Profile` 애노테이션을 잘 살펴보면 `@Conditional(ProfileCondition.class)` 이 붙어 있는 것을 확인할 수 있다. ProfileCondition 클래스에 들어가보면 `matches` 메서드가 있는데, 이 안에서 현재 실행중인 `Profile`과 설정된 `Profile`을 확인한다.  
+`@Profile` 애노테이션에는 `@Conditional(ProfileCondition.class)`가 지정되어 있으며, 이를 통해 `ProfileCondition` 클래스의 `matches` 메서드가 호출된다. `ProfileCondition` 클래스는 `Condition` 인터페이스를 구현하며, `matches` 메서드 내부에서 활성화된 프로파일과 `@Profile`에 설정된 프로파일이 일치하는지 확인한다.  
 
 
 ```java
@@ -219,9 +219,11 @@ class ProfileCondition implements Condition {
 
 	@Override
 	public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-		MultiValueMap<String, Object> attrs = metadata.getAllAnnotationAttributes(Profile.class.getName());
+		// @Profile 애노테이션의 value 속성을 읽어 온다. 
+        MultiValueMap<String, Object> attrs = metadata.getAllAnnotationAttributes(Profile.class.getName());
 		if (attrs != null) {
 			for (Object value : attrs.get("value")) {
+                // 각 value(프로파일 이름)를 반복하면서 matchesProfiles 메서드를 호출하여 현재 활성화된 프로파일과 비교한다. 
 				if (context.getEnvironment().matchesProfiles((String[]) value)) {
 					return true;
 				}
@@ -237,7 +239,8 @@ class ProfileCondition implements Condition {
 <br>
 
 
-`matchesProfiles` 메서드를 타고타고 들어가다보면 `ProfilesParser`의 `parseToken` 메서드를 만나게 된다. 
+`matchesProfiles` 메서드를 따라가 보면 `Profiles.of` 메서드가 호출되며, 이 메서드는 문자열 형태의 프로파일 표현식을 `Profiles` 객체로 변환한다. 
+이를 통해 스프링은 프로파일의 복잡한 논리 조건을 파싱하고 관리할 수 있다.  
 
 ```java
 public interface Environment extends PropertyResolver {
@@ -267,6 +270,11 @@ public interface Profiles {
 ```
 
 <br>
+
+`ProfilesParser`는 `parseTokens` 메서드를 통해 프로파일 표현식 내의 AND, OR, NOT 연산자를 해석하고 이를 토대로 프로파일 조건을 구성한다. 
+그리고 괄호를 통해 중첩된 표현식을 허용하며, `Context.PARENTHESIS`를 사용해 괄호 안의 조건을 먼저 파싱한다. `merge` 메서드를 사용하여 구성된 각 조건을 `AND` 혹은 `OR` 연산으로 합쳐
+최종 조건을 생성한다. 이러한 과정으로 스프링은 프로파일 조건을 복잡한 논리로 조합하여 설정할 수 있다. 예를 들어 `"dev & !prod"`와 같은 표현식도 사용할 수 있는 것이다.  
+
 
 ```java
 final class ProfilesParser {
@@ -321,8 +329,6 @@ final class ProfilesParser {
 
 }
 ```
-
-각각 문자열을 파싱하여 AND, OR, NOT 연산자를 확인하여 현재 적용할 Profile을 확인하는 것을 볼 수 있다.  
 
 <br>
 
